@@ -84,7 +84,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // each company's brand color themes the whole app (including the welcome screen)
   useEffect(() => {
-    let c = org?.accent_color
+    let c: string | undefined = org?.accent_color
     try {
       if (c) localStorage.setItem('tradebase-accent', c)        // remembered for the sign-in screen
       else c = localStorage.getItem('tradebase-accent') || undefined
