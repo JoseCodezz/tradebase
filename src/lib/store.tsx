@@ -84,10 +84,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // each company's brand color themes the whole app (including the welcome screen)
   useEffect(() => {
-    const c = org?.accent_color || '#b64d26'
+    let c = org?.accent_color
+    try {
+      if (c) localStorage.setItem('tradebase-accent', c)        // remembered for the sign-in screen
+      else c = localStorage.getItem('tradebase-accent') || undefined
+    } catch { /* ignore */ }
+    c ||= '#b64d26'
     const root = document.documentElement.style
     root.setProperty('--accent', c)
-    root.setProperty('--accent-soft', `color-mix(in srgb, ${c} 14%, white)`)
+    root.setProperty('--accent-soft', `color-mix(in srgb, ${c} 16%, var(--card))`)
     root.setProperty('--nav-active', `color-mix(in srgb, ${c} 55%, white)`)
   }, [org?.accent_color])
 
