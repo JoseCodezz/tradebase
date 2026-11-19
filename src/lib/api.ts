@@ -26,6 +26,7 @@ export interface Backend {
   updateMember(orgId: string, userId: string, patch: Partial<Member>): Promise<void>
   invites(orgId: string): Promise<Invite[]>
   invite(orgId: string, email: string, role: Role, name: string): Promise<void>
+  deleteInvite(id: string): Promise<void>
   updateOrg(orgId: string, patch: Partial<Organization>): Promise<void>
 
   leads(orgId: string): Promise<Lead[]>
@@ -103,6 +104,7 @@ function supabaseBackend(sb: SupabaseClient): Backend {
     async invite(orgId, email, role, name) {
       check(await sb.from('invites').insert({ org_id: orgId, email: email.trim().toLowerCase(), role, display_name: name }))
     },
+    async deleteInvite(id) { check(await sb.from('invites').delete().eq('id', id)) },
     async updateOrg(orgId, patch) { check(await sb.from('organizations').update(patch).eq('id', orgId)) },
 
     async leads(orgId) {

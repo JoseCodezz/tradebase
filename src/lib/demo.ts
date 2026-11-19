@@ -116,6 +116,7 @@ export function demoBackend(): Backend {
     async invite(orgId, email, role, name) {
       db.invites.unshift({ id: uid(), org_id: orgId, email, role, display_name: name, accepted_at: null }); save()
     },
+    async deleteInvite(id) { db.invites = db.invites.filter(i => i.id !== id); save() },
     async updateOrg(orgId, patch) { Object.assign(db.orgs.find(o => o.id === orgId)!, patch); save() },
 
     async leads(orgId) { await wait(); return clone(db.leads.filter(l => l.org_id === orgId)) },

@@ -102,7 +102,7 @@ function People({ orgId, onChange }: { orgId: string; onChange: () => void }) {
 
   async function invite(e: FormEvent) {
     e.preventDefault(); setErr('')
-    try { await api.invite(orgId, email, role, name); setEmail(''); setName(''); load() }
+    try { await api.invite(orgId, email.trim().toLowerCase(), role, name); setEmail(''); setName(''); load() }
     catch (e) { setErr((e as Error).message) }
   }
 
@@ -134,10 +134,10 @@ function People({ orgId, onChange }: { orgId: string; onChange: () => void }) {
           <button className="btn primary">Invite</button>
         </div>
         {err && <div className="error">{err}</div>}
-        <p className="small muted" style={{ margin: 0 }}>They create an account with this email and land straight in {org?.name}.</p>
+        <p className="small muted" style={{ margin: 0 }}>No email is sent. After you invite them, tap <b>Share invite</b> and text it to them. They sign up with this exact email and land straight in {org?.name}.</p>
       </form>
       {invites.filter(i => !i.accepted_at).map(i => (
-        <div key={i.id} className="small muted">Invited: {i.display_name} ({i.email}) · {i.role}</div>
+        <PendingInvite key={i.id} invite={i} company={org?.name ?? ''} onRemove={async () => { await api.deleteInvite(i.id); load() }} />
       ))}
       {me?.role === 'owner' && (
         <div className="stack" style={{ borderTop: '1px solid var(--col)', paddingTop: 12 }}>
@@ -159,6 +159,37 @@ function People({ orgId, onChange }: { orgId: string; onChange: () => void }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const APP_URL = typeof location !== 'undefined' ? location.origin + location.pathname : ''
+
+function PendingInvite({ invite, company, onRemove }: { invite: Invite; company: string; onRemove: () => void }) {
+  const [done, setDone] = useState('')
+  const first = (invite.display_name || '').split(' ')[0]
+  const text = `Hey${first ? ' ' + first : ''}, you've been added to ${company}'s CRM. ` +
+    `Open ${APP_URL} , tap "New here? Create an account", and sign up with ${invite.email}. ` +
+    `Then add it to your home screen so it works like an app.`
+
+  async function share() {
+    try {
+      if (navigator.share) { await navigator.share({ text }); setDone('Shared'); return }
+    } catch { /* cancelled or blocked, fall back to copy */ }
+    try { await navigator.clipboard.writeText(text); setDone('Copied — paste it in a text') }
+    catch { setDone('Copy failed — select the message below') }
+  }
+
+  return (
+    <div className="fu-row wrap" style={{ alignItems: 'flex-start' }}>
+      <div className="grow">
+        <div>{invite.display_name} <span className="pill" style={{ marginLeft: 4 }}>{invite.role}</span></div>
+        <div className="small muted">{invite.email} · hasn't signed up yet</div>
+        {done && <div className="small" style={{ marginTop: 4 }}>{done}</div>}
+        {done.startsWith('Copy failed') && <textarea className="input small" readOnly value={text} style={{ marginTop: 6 }} />}
+      </div>
+      <button type="button" className="btn sm primary" onClick={share}>Share invite</button>
+      <button type="button" className="btn ghost sm" onClick={onRemove} title="Remove invite">Remove</button>
     </div>
   )
 }
