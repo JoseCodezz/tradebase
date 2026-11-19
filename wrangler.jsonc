@@ -1,0 +1,9 @@
+{
+  // Cloudflare Workers static-assets deploy for the CRM (app.safehomeroofs.com)
+  "name": "safehome-crm",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
