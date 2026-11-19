@@ -95,6 +95,8 @@ function People({ orgId, onChange }: { orgId: string; onChange: () => void }) {
   const [name, setName] = useState('')
   const [role, setRole] = useState<Role>('rep')
   const [err, setErr] = useState('')
+  const [note, setNote] = useState('')
+  const [sending, setSending] = useState(false)
   const [cadence, setCadence] = useState(org?.followup_days.join(', ') ?? '')
   const [color, setColor] = useState(org?.accent_color ?? '#b64d26')
   const load = () => api.invites(orgId).then(setInvites)
@@ -102,8 +104,17 @@ function People({ orgId, onChange }: { orgId: string; onChange: () => void }) {
 
   async function invite(e: FormEvent) {
     e.preventDefault(); setErr('')
-    try { await api.invite(orgId, email.trim().toLowerCase(), role, name); setEmail(''); setName(''); load() }
+    setSending(true); setNote('')
+    try {
+      const sent = email.trim().toLowerCase()
+      const r = await api.invite(orgId, sent, role, name)
+      setNote(r.status === 'sent' ? `Invite email sent to ${sent}.`
+        : r.status === 'existing' ? `${sent} already has an account. They'll see ${org?.name} next time they sign in.`
+        : `Invite saved, but the email didn't send (${r.email_error}). Use "Share invite" below to text it instead.`)
+      setEmail(''); setName(''); load()
+    }
     catch (e) { setErr((e as Error).message) }
+    setSending(false)
   }
 
   return (
@@ -131,10 +142,11 @@ function People({ orgId, onChange }: { orgId: string; onChange: () => void }) {
             <option value="crew">Crew — only jobs assigned to them, scope & photos</option>
             <option value="owner">Owner — full access</option>
           </select>
-          <button className="btn primary">Invite</button>
+          <button className="btn primary" disabled={sending}>{sending ? 'Sending…' : 'Send invite'}</button>
         </div>
         {err && <div className="error">{err}</div>}
-        <p className="small muted" style={{ margin: 0 }}>No email is sent. After you invite them, tap <b>Share invite</b> and text it to them. They sign up with this exact email and land straight in {org?.name}.</p>
+        {note && <div className="small" style={{ color: note.startsWith('Invite saved') ? 'var(--warn)' : 'var(--ok)' }}>{note}</div>}
+        <p className="small muted" style={{ margin: 0 }}>They get an email with a link to set their password and land straight in {org?.name}. You can also text them the invite with <b>Share invite</b>.</p>
       </form>
       {invites.filter(i => !i.accepted_at).map(i => (
         <PendingInvite key={i.id} invite={i} company={org?.name ?? ''} onRemove={async () => { await api.deleteInvite(i.id); load() }} />
@@ -169,7 +181,7 @@ function PendingInvite({ invite, company, onRemove }: { invite: Invite; company:
   const [done, setDone] = useState('')
   const first = (invite.display_name || '').split(' ')[0]
   const text = `Hey${first ? ' ' + first : ''}, you've been added to ${company}'s CRM. ` +
-    `Open ${APP_URL} , tap "New here? Create an account", and sign up with ${invite.email}. ` +
+    `Check your email (${invite.email}) for the invite link, or open ${APP_URL} , tap "New here? Create an account", and sign up with that email. ` +
     `Then add it to your home screen so it works like an app.`
 
   async function share() {
@@ -184,7 +196,7 @@ function PendingInvite({ invite, company, onRemove }: { invite: Invite; company:
     <div className="fu-row wrap" style={{ alignItems: 'flex-start' }}>
       <div className="grow">
         <div>{invite.display_name} <span className="pill" style={{ marginLeft: 4 }}>{invite.role}</span></div>
-        <div className="small muted">{invite.email} · hasn't signed up yet</div>
+        <div className="small muted">{invite.email} · invited, hasn't joined yet</div>
         {done && <div className="small" style={{ marginTop: 4 }}>{done}</div>}
         {done.startsWith('Copy failed') && <textarea className="input small" readOnly value={text} style={{ marginTop: 6 }} />}
       </div>

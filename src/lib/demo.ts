@@ -115,7 +115,11 @@ export function demoBackend(): Backend {
     async invites(orgId) { return clone(db.invites.filter(i => i.org_id === orgId)) },
     async invite(orgId, email, role, name) {
       db.invites.unshift({ id: uid(), org_id: orgId, email, role, display_name: name, accepted_at: null }); save()
+      return { status: 'sent' as const }
     },
+    async sendPasswordReset() { await wait() },
+    async setPassword() { await wait() },
+    async ready() {},
     async deleteInvite(id) { db.invites = db.invites.filter(i => i.id !== id); save() },
     async updateOrg(orgId, patch) { Object.assign(db.orgs.find(o => o.id === orgId)!, patch); save() },
 

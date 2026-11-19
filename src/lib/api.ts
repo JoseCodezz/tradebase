@@ -10,6 +10,17 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 /** No Supabase keys configured → the app runs in demo mode with sample data. */
 export const DEMO = !url || !key
 
+// Invite and password-reset emails land back here with the result in the URL hash.
+// Read it once, before the router or Supabase touch the hash.
+const startHash = typeof location !== 'undefined' ? location.hash : ''
+export const PASSWORD_LINK = /type=(invite|recovery)/.test(startHash)
+export const LINK_ERROR = /error_code=otp_expired/.test(startHash)
+  ? 'That link has expired. Ask for a new invite, or use "Forgot password?" below.'
+  : /error=/.test(startHash) ? 'That link didn\'t work. Ask for a new one.' : ''
+export const APP_URL = typeof location !== 'undefined' ? location.origin + location.pathname : ''
+
+export type InviteResult = { status: 'sent' | 'existing' | 'saved'; email_error?: string }
+
 export interface AuthUser { id: string; email: string }
 
 export interface Backend {
@@ -25,7 +36,10 @@ export interface Backend {
   members(orgId: string): Promise<Member[]>
   updateMember(orgId: string, userId: string, patch: Partial<Member>): Promise<void>
   invites(orgId: string): Promise<Invite[]>
-  invite(orgId: string, email: string, role: Role, name: string): Promise<void>
+  invite(orgId: string, email: string, role: Role, name: string): Promise<InviteResult>
+  sendPasswordReset(email: string): Promise<void>
+  setPassword(password: string): Promise<void>
+  ready(): Promise<void>
   deleteInvite(id: string): Promise<void>
   updateOrg(orgId: string, patch: Partial<Organization>): Promise<void>
 
@@ -102,8 +116,25 @@ function supabaseBackend(sb: SupabaseClient): Backend {
       return check(await sb.from('invites').select('*').eq('org_id', orgId).order('created_at', { ascending: false }))
     },
     async invite(orgId, email, role, name) {
-      check(await sb.from('invites').insert({ org_id: orgId, email: email.trim().toLowerCase(), role, display_name: name }))
+      const { data, error } = await sb.functions.invoke('invite-member', {
+        body: { org_id: orgId, email, role, display_name: name, redirect_to: APP_URL },
+      })
+      if (error) {
+        let msg = error.message
+        try { msg = (await (error as { context?: Response }).context?.json())?.error ?? msg } catch { /* keep */ }
+        throw new Error(msg)
+      }
+      return data as InviteResult
     },
+    async sendPasswordReset(email) {
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: APP_URL })
+      if (error) throw new Error(error.message)
+    },
+    async setPassword(password) {
+      const { error } = await sb.auth.updateUser({ password })
+      if (error) throw new Error(error.message)
+    },
+    async ready() { await sb.auth.getSession() },
     async deleteInvite(id) { check(await sb.from('invites').delete().eq('id', id)) },
     async updateOrg(orgId, patch) { check(await sb.from('organizations').update(patch).eq('id', orgId)) },
 
@@ -160,4 +191,4 @@ function supabaseBackend(sb: SupabaseClient): Backend {
   }
 }
 
-export const api: Backend = DEMO ? demoBackend() : supabaseBackend(createClient(url!, key!))
+export const api: Backend = DEMO ? demoBackend() : supabaseBackend(createClient(url!, key!, { auth: { detectSessionInUrl: true, flowType: 'implicit' } }))

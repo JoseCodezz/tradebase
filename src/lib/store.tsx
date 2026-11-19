@@ -82,6 +82,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { refresh() }, [refresh])
 
+  // each company's brand color themes the whole app (including the welcome screen)
+  useEffect(() => {
+    const c = org?.accent_color || '#b64d26'
+    const root = document.documentElement.style
+    root.setProperty('--accent', c)
+    root.setProperty('--accent-soft', `color-mix(in srgb, ${c} 14%, white)`)
+    root.setProperty('--nav-active', `color-mix(in srgb, ${c} 55%, white)`)
+  }, [org?.accent_color])
+
   const value: Store = {
     loading, ready, user, org, me, orgs, members, leads, followups, payments, assignments,
     refresh, reloadSession: () => reloadSession(true),

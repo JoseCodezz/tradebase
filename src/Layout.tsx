@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { NavLink, Outlet, useSearchParams } from 'react-router-dom'
 import { CalendarCheck, Columns3, Home, LogOut, Plus, Users, ListChecks, HardHat } from 'lucide-react'
 import { useStore, todayISO } from './lib/store'
@@ -19,14 +19,7 @@ export default function Layout() {
 
   const close = () => { params.delete('lead'); setParams(params) }
 
-  // each company's brand color themes the whole app
-  useEffect(() => {
-    const c = org?.accent_color || '#b64d26'
-    const root = document.documentElement.style
-    root.setProperty('--accent', c)
-    root.setProperty('--accent-soft', `color-mix(in srgb, ${c} 14%, white)`)
-    root.setProperty('--nav-active', `color-mix(in srgb, ${c} 55%, white)`)
-  }, [org?.accent_color])
+
 
   return (
     <div className="shell">
